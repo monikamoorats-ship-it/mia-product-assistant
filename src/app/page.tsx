@@ -1,13 +1,21 @@
-// Placeholder for slice 1. The real layout, chat, products and quiz views
-// arrive in later slices.
-export default function Home() {
-  return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-6 text-center">
-      <h1 className="text-3xl font-semibold text-teal-700">Mia</h1>
-      <p className="text-slate-600">Product Learning Assistant is being set up.</p>
-      <p className="text-xs text-slate-500">
-        Mia is a learning tool and does not replace advice from a pharmacist or doctor.
-      </p>
-    </main>
-  );
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { DbUnavailable } from "@/components/db-unavailable";
+import { getPrisma } from "@/lib/db";
+import { OWNER_COOKIE, ownerIdFromCookie } from "@/lib/owner";
+import { latestChatId } from "@/server/chats";
+
+// Read-only: opens the most recent non-empty chat, otherwise the unsaved /chat/new.
+export default async function Home() {
+  const ownerId = ownerIdFromCookie((await cookies()).get(OWNER_COOKIE)?.value);
+  let target = "/chat/new";
+  if (ownerId) {
+    try {
+      const id = await latestChatId(getPrisma(), ownerId);
+      if (id) target = `/chat/${id}`;
+    } catch {
+      return <DbUnavailable />;
+    }
+  }
+  redirect(target);
 }

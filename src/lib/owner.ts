@@ -39,3 +39,16 @@ export function ownerCookieOptions(isProduction: boolean = process.env.NODE_ENV 
 export function ownerIdFromCookie(value: string | undefined | null): string | null {
   return isValidOwnerToken(value) ? hashOwnerToken(value) : null;
 }
+
+/** Serialises the Set-Cookie header value for a new owner token. */
+export function serializeOwnerCookie(token: string, isProduction: boolean = process.env.NODE_ENV === "production"): string {
+  const o = ownerCookieOptions(isProduction);
+  return [
+    `${OWNER_COOKIE}=${token}`,
+    `Path=${o.path}`,
+    `Max-Age=${o.maxAge}`,
+    "HttpOnly",
+    "SameSite=Lax",
+    ...(o.secure ? ["Secure"] : []),
+  ].join("; ");
+}
