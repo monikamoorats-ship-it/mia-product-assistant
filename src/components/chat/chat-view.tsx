@@ -1,12 +1,13 @@
 "use client";
 
-import { Paperclip, Send, SlidersHorizontal, X } from "lucide-react";
+import { FileText, Paperclip, Send, SlidersHorizontal, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiNotice } from "../api-notice";
 import { Button, iconButtonClass } from "../ui/button";
 import { ConfirmDialog } from "../ui/dialog";
 import { ProductCard } from "./product-card";
+import { PromptsManager } from "./prompts-manager";
 import { SIMULATION_NOTE, SettingsDialog } from "./settings-dialog";
 import { ClientApiError, apiFetch, formatTime, notifyChatsChanged } from "@/lib/client-api";
 import { cn } from "@/lib/cn";
@@ -14,7 +15,7 @@ import { FIELD_LIMITS } from "@/lib/limits";
 import { CHAT_MODELS, MODEL_LABELS, DEFAULT_SETTINGS, type ChatModelValue } from "@/lib/validation";
 import type { ChatDTO, MessageDTO } from "@/server/chats";
 
-type Persona = { id: string; name: string; seeded: boolean; seedKey: string | null };
+type Persona = { id: string; name: string; content: string; seeded: boolean; seedKey: string | null };
 
 const EXAMPLES = [
   "What helps with hay fever?",
@@ -48,6 +49,7 @@ export function ChatView({ initialChat }: { initialChat: ChatDTO | null }) {
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; retry?: () => void } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [promptsOpen, setPromptsOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -252,6 +254,9 @@ export function ChatView({ initialChat }: { initialChat: ChatDTO | null }) {
               ))}
             </select>
           </label>
+          <Button variant="secondary" onClick={() => setPromptsOpen(true)}>
+            <FileText className="size-4" aria-hidden /> Manage Prompts
+          </Button>
           <Button variant="secondary" onClick={() => setSettingsOpen(true)}>
             <SlidersHorizontal className="size-4" aria-hidden /> Advanced settings
           </Button>
@@ -377,6 +382,17 @@ export function ChatView({ initialChat }: { initialChat: ChatDTO | null }) {
         </div>
       </div>
 
+      <PromptsManager
+        open={promptsOpen}
+        onOpenChange={setPromptsOpen}
+        personas={personas}
+        onChanged={async (deletedId) => {
+          const list = await loadPersonas();
+          const customer = list.find((p) => p.seedKey === "customer-guide")?.id ?? null;
+          if (deletedId && deletedId === personaId) setPersonaId(customer); // the server already set the chat to null (Customer tone)
+          else if (personaId && !list.some((p) => p.id === personaId)) setPersonaId(customer);
+        }}
+      />
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
