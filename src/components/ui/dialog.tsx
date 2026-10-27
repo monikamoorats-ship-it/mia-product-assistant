@@ -8,8 +8,28 @@ import { cn } from "@/lib/cn";
 import { Button } from "./button";
 
 /**
- * Accessible Dialog (focus trap, Escape to close, focus restore are handled by
- * Radix). On phones it is a full-screen sheet; from `md` up a centred dialog.
+ * Radix only restores focus to a <Trigger>, and these dialogs are opened by
+ * controlled state. This hook remembers the element that had focus when the
+ * dialog opened and returns focus to it on close.
+ */
+function useRestoreFocus(open: boolean) {
+  const opener = React.useRef<HTMLElement | null>(null);
+  const wasOpen = React.useRef(false);
+  // Captured during render, before Radix moves focus into the dialog.
+  if (open && !wasOpen.current && typeof document !== "undefined") {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+  wasOpen.current = open;
+  return (event: Event) => {
+    event.preventDefault();
+    opener.current?.focus();
+  };
+}
+
+/**
+ * Accessible Dialog (focus trap and Escape to close are handled by Radix;
+ * focus restore by useRestoreFocus). On phones it is a full-screen sheet;
+ * from `md` up a centred dialog.
  */
 export function Dialog({
   open,
@@ -27,12 +47,13 @@ export function Dialog({
   /** "left" renders the mobile navigation drawer. */
   side?: "left";
 }) {
+  const restoreFocus = useRestoreFocus(open);
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-slate-900/40" />
         <DialogPrimitive.Content
-          aria-describedby={description ? undefined : undefined}
+          onCloseAutoFocus={restoreFocus}
           className={cn(
             "fixed z-50 flex flex-col bg-white shadow-xl outline-none",
             side === "left"
@@ -79,11 +100,12 @@ export function ConfirmDialog({
   onConfirm: () => void;
   busy?: boolean;
 }) {
+  const restoreFocus = useRestoreFocus(open);
   return (
     <AlertPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertPrimitive.Portal>
         <AlertPrimitive.Overlay className="fixed inset-0 z-[60] bg-slate-900/40" />
-        <AlertPrimitive.Content className="fixed left-1/2 top-1/2 z-[70] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-xl">
+        <AlertPrimitive.Content onCloseAutoFocus={restoreFocus} className="fixed left-1/2 top-1/2 z-[70] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-5 shadow-xl">
           <AlertPrimitive.Title className="text-base font-semibold text-slate-900">{title}</AlertPrimitive.Title>
           <AlertPrimitive.Description className="mt-2 text-sm text-slate-600">{description}</AlertPrimitive.Description>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

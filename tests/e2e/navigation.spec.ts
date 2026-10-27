@@ -85,7 +85,7 @@ test("products: lists the 7 seeded products, searches by symptom, and the detail
   await expect(page.getByRole("link", { name: /Ibuprofen/ })).toHaveCount(0);
   await page.getByRole("link", { name: /Cetirizine 10 mg tablets/ }).click();
   await expect(page).toHaveURL(/\/products\?product=/);
-  await expect(page.getByRole("dialog").getByText("cetirizine")).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("cetirizine", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/products$/);
 });
@@ -96,7 +96,7 @@ test("products: category filter works and an unknown product ID shows 'Product n
   await expect(page.getByRole("link", { name: /Loperamide/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Ibuprofen/ })).toHaveCount(0);
   await page.goto("/products?product=nope");
-  await expect(page.getByRole("dialog").getByText("Product not found")).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "Product not found" })).toBeVisible();
 });
 
 test("seeded products are read-only: Manage Products offers Duplicate but no Edit/Delete for them", async ({ page }) => {

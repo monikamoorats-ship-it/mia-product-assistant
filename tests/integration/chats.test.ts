@@ -261,11 +261,25 @@ describe("product snapshots", () => {
     expect(cards[2]).toEqual({ unavailable: true });
   });
 
-  it("malformed stored snapshots are ignored safely", async () => {
+  it("malformed stored snapshots are ignored safely and never exposed", async () => {
     const { sessionId } = await send(OWNER_A, null, "ibuprofen");
     await prisma.$executeRaw`UPDATE "Message" SET "productSnapshots" = '[{"name":1}]'::jsonb WHERE "sessionId" = ${sessionId} AND role = 'assistant'`;
+
+    // Malformed snapshots are dropped; the message then falls back to the legacy
+    // path and resolves its productIds against currently visible products only.
     const chat = await getChat(prisma, OWNER_A, sessionId);
-    expect(chat?.messages[1].cards.every((c) => c.unavailable)).toBe(true);
+    const cards = chat!.messages[1].cards;
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) {
+      expect(card.unavailable).toBe(false);
+      if (!card.unavailable) expect(card.product.name).toBe("Ibuprofen 400 mg tablets"); // from current data, not the bad JSON
+    }
+    expect(JSON.stringify(chat)).not.toContain('"name":1');
+
+    // With no resolvable productIds either, nothing usable remains.
+    await prisma.$executeRaw`UPDATE "Message" SET "productIds" = ARRAY['gone']::text[] WHERE "sessionId" = ${sessionId} AND role = 'assistant'`;
+    const unresolved = (await getChat(prisma, OWNER_A, sessionId))!.messages[1].cards;
+    expect(unresolved).toEqual([{ unavailable: true }]);
   });
 });
 

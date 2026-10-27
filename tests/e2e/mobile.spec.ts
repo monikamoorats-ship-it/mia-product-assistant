@@ -72,6 +72,9 @@ test("the delete-chat icon stays visible on mobile once a chat exists", async ({
   await page.goto("/chat/new");
   await page.getByRole("button", { name: "What helps with hay fever?" }).click();
   await expect(page).toHaveURL(/\/chat\/[^/]+$/, { timeout: 15_000 });
+  // Wait for the saved chat to render so the route change has fully committed;
+  // otherwise the "close drawer on navigation" effect can close a drawer opened too early.
+  await expect(page.getByRole("article").first()).toBeVisible();
   await page.getByRole("button", { name: "Open navigation menu" }).click();
   const trash = page.getByRole("button", { name: /^Delete chat:/ }).first();
   await expect(trash).toBeVisible();
