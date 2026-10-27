@@ -73,6 +73,45 @@ jobs:
           psql "$TEST_DATABASE_URL" -tA -c 'SELECT count(*) FROM "SystemPrompt"' | grep -qx 3
       - run: npm run test:integration
 
+  e2e:
+    name: End-to-end navigation and responsive tests (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mia_test_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mia_test_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Throwaway database created by this job only. Never the Railway database.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mia_test_e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npx tsx prisma/seed.ts
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+
   migration-failure:
     name: Failed migration exits non-zero (separate disposable database)
     runs-on: ubuntu-latest

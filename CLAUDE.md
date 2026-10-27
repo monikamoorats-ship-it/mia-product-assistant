@@ -16,5 +16,6 @@
 
 - Pure logic tests run with `npm test` and need no PostgreSQL, no `DATABASE_URL`, no server and no network. Keep domain logic in pure modules without Prisma imports.
 - Database integration tests (`npm run test:integration`) run only in GitHub Actions against a disposable PostgreSQL service container, using `TEST_DATABASE_URL`, `NODE_ENV=test` and `ALLOW_TEST_DATABASE_RESET=true`.
+- End-to-end tests (Playwright, `tests/e2e`) also run only in GitHub Actions, never locally against Railway.
 - Do not create a local database or local production server. Never use the Railway database (`DATABASE_URL`) for tests or development.
 - Never log chat text, persona content, product descriptions, filenames, owner cookies or raw request bodies.
