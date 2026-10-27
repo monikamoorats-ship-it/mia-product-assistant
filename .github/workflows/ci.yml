@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-build:
+    name: Unit tests and database-free build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # The production build must succeed with no database available.
+      - name: Production build without DATABASE_URL
+        run: |
+          if [ -n "${DATABASE_URL:-}" ]; then echo "DATABASE_URL must be unset for this step"; exit 1; fi
+          npm run build
+
+  integration:
+    name: Database integration tests (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mia_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mia_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Throwaway database created by this job only. Never the Railway database.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mia_test
+      NODE_ENV: test
+      ALLOW_TEST_DATABASE_RESET: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Apply committed migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - name: Seed twice (second run must create no duplicates)
+        run: |
+          npx tsx prisma/seed.ts
+          npx tsx prisma/seed.ts
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - name: Verify seed counts
+        run: |
+          psql "$TEST_DATABASE_URL" -tA -c 'SELECT count(*) FROM "Product"' | grep -qx 7
+          psql "$TEST_DATABASE_URL" -tA -c 'SELECT count(*) FROM "SystemPrompt"' | grep -qx 3
+      - run: npm run test:integration
+
+  migration-failure:
+    name: Failed migration exits non-zero (separate disposable database)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mia_test_migration_failure
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mia_test_migration_failure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mia_test_migration_failure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Create a conflicting table so the migration must fail
+        run: psql "$DATABASE_URL" -c 'CREATE TABLE "Product" (id integer)'
+      - name: Migration must fail with a non-zero exit code
+        run: |
+          if npx prisma migrate deploy; then
+            echo "Expected the migration to fail"; exit 1
+          fi

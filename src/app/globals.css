@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: #0d9488;
+  --color-primary-foreground: #ffffff;
+  --color-user-bubble: #7c3aed;
+  --radius-lg: 0.75rem;
+}
+
+body {
+  background: #ffffff;
+  color: #0f172a;
+}
