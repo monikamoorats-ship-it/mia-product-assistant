@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { DbUnavailable } from "@/components/db-unavailable";
 import { ProductsView } from "@/components/products/products-view";
 import { getPrisma } from "@/lib/db";
+import { logDbError } from "@/lib/log-error";
 import { OWNER_COOKIE, ownerIdFromCookie } from "@/lib/owner";
 import { listProductDTOs, type ProductDTO } from "@/server/catalog";
 
@@ -13,7 +14,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   let products: ProductDTO[];
   try {
     products = await listProductDTOs(getPrisma(), ownerId);
-  } catch {
+  } catch (error) {
+    logDbError("page-products", error);
     return <DbUnavailable />;
   }
   // An unknown or another owner's product ID shows the same generic "Product not found" state.

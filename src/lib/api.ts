@@ -3,6 +3,7 @@
  * Request/Response) so the behaviour can be unit-tested without Next.js.
  * Nothing here logs request bodies, owner cookies or message text.
  */
+import { logDbError } from "./log-error";
 import { OWNER_COOKIE, ownerIdFromCookie } from "./owner";
 import { MUTATING_METHODS, getClientIp, isSameOrigin } from "./request-meta";
 import type { FieldErrors } from "./validation";
@@ -102,7 +103,7 @@ export function guardMutation(
  * Maps any thrown database/config error to a safe 503 (or 500). Never exposes
  * Prisma codes, connection details or stack traces.
  */
-export function safeErrorResponse(_error: unknown): Response {
-  void _error; // intentionally not logged: errors may carry request content
+export function safeErrorResponse(error: unknown): Response {
+  logDbError("api", error); // class and codes only; the message may carry request content
   return dbUnavailable();
 }

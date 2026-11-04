@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DbUnavailable } from "@/components/db-unavailable";
 import { getPrisma } from "@/lib/db";
+import { logDbError } from "@/lib/log-error";
 import { OWNER_COOKIE, ownerIdFromCookie } from "@/lib/owner";
 import { latestChatId } from "@/server/chats";
 
@@ -13,7 +14,8 @@ export default async function Home() {
     try {
       const id = await latestChatId(getPrisma(), ownerId);
       if (id) target = `/chat/${id}`;
-    } catch {
+    } catch (error) {
+      logDbError("page-home", error);
       return <DbUnavailable />;
     }
   }

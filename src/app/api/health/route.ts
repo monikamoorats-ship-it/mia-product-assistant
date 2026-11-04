@@ -6,7 +6,7 @@ import { checkHealth } from "@/lib/health";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const result = await checkHealth(() => getPrisma().$queryRaw`SELECT 1`);
+  const result = await checkHealth(() => getPrisma().$queryRaw`SELECT 1 FROM "SystemPrompt" LIMIT 1`);
   return NextResponse.json(result.body, {
     status: result.status,
     headers: { "Cache-Control": "no-store" },
