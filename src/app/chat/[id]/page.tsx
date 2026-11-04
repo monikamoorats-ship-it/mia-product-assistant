@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChatView } from "@/components/chat/chat-view";
 import { DbUnavailable } from "@/components/db-unavailable";
 import { getPrisma } from "@/lib/db";
+import { logDbError } from "@/lib/log-error";
 import { OWNER_COOKIE, ownerIdFromCookie } from "@/lib/owner";
 import { getChat, type ChatDTO } from "@/server/chats";
 
@@ -15,7 +16,8 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   let chat: ChatDTO | null;
   try {
     chat = await getChat(getPrisma(), ownerId, id);
-  } catch {
+  } catch (error) {
+    logDbError("page-chat", error);
     return <DbUnavailable />;
   }
   if (!chat) notFound();

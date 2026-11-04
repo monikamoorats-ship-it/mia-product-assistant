@@ -61,12 +61,15 @@ Railway builds and deploys automatically from the `main` branch. Settings live i
 [`railway.json`](railway.json):
 
 1. **Build:** `npm run build` (`prisma generate && next build`). The build never queries the database.
-2. **Pre-deploy:** `npm run predeploy` (`prisma migrate deploy && prisma db seed`). If this fails, the new
-   deployment is not started and `prisma db push` is never used as a fallback.
-3. **Start:** `npm run start` (`next start`, which listens on Railway's `PORT`).
-4. **Healthcheck:** `GET /api/health` runs `SELECT 1` and returns `200 {"status":"ok"}` or
-   `503 {"status":"unavailable"}`. Railway uses it while activating a deployment; it is not a
-   substitute for continuous production monitoring.
+2. **Start:** `npm run start:railway` (`prisma migrate deploy && prisma db seed`, then `next start` on Railway's `PORT`).
+   Migrations and the idempotent seed run at container start, where `DATABASE_URL` is guaranteed to exist and the
+   output appears in the normal deploy logs. If they fail the container exits, the healthcheck never passes and
+   Railway keeps the previous deployment. `prisma db push` is never used as a fallback.
+3. **Healthcheck:** `GET /api/health` runs a trivial query against the `SystemPrompt` table, so it only passes once
+   migrations have been applied. It returns `200 {"status":"ok"}` or `503 {"status":"unavailable"}`. Railway uses
+   it while activating a deployment; it is not a substitute for continuous production monitoring.
+4. **Diagnostics:** database failures are logged as `[db-error] scope=... name=... code=...` (error class and codes
+   only, never messages or request content).
 
 On the very first deployment there is no previous version to fall back to, so a failed first
 deployment leaves the app unavailable.
