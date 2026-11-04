@@ -8,10 +8,11 @@ import { Dialog } from "./ui/dialog";
 import { iconButtonClass } from "./ui/button";
 
 export const DISCLAIMER = "Mia is a learning tool and does not replace advice from a pharmacist or doctor.";
+export const FOOTER_TEXT = "© 2026 Mia Product Learning Assistant. Built with Claude Code";
 
 /**
  * Shared layout: fixed 260 px sidebar on desktop (md and up), hamburger drawer
- * on mobile, and an always-visible disclaimer bar.
+ * on mobile, and an always-visible disclaimer bar and footer.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -49,6 +50,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
+      <footer className="shrink-0 border-t border-slate-200 bg-white px-3 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] text-center text-xs text-slate-600">
+        {FOOTER_TEXT}
+      </footer>
 
       <Dialog open={drawerOpen} onOpenChange={setDrawerOpen} title="Mia navigation" side="left">
         <div className="-m-4 flex h-[calc(100%+2rem)] flex-col">
