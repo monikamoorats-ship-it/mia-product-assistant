@@ -1,0 +1,102 @@
+// Mia - Product Learning Assistant data model.
+//
+// Ownership model:
+//  - Rows with ownerId = NULL are global seeded records (read-only for users).
+//  - Rows with an ownerId belong to one anonymous browser profile. ownerId is a
+//    SHA-256 hash (hex) of the opaque owner cookie, never the raw token.
+//  - seedKey is an immutable identifier used only by the seed script.
+//
+// Extra constraints that Prisma cannot express (CHECK constraints, partial
+// unique indexes) are added by hand in the migration SQL.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+enum ChatModel {
+  GPT4_STYLE
+  CLAUDE_STYLE
+  LLAMA_STYLE
+}
+
+model SystemPrompt {
+  id        String   @id @default(cuid())
+  seedKey   String?  @unique
+  ownerId   String?  @db.VarChar(64)
+  name      String   @db.VarChar(40)
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  sessions ChatSession[]
+
+  @@unique([ownerId, name])
+  @@index([ownerId])
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  seedKey         String?  @unique
+  ownerId         String?  @db.VarChar(64)
+  name            String   @db.VarChar(100)
+  activeSubstance String   @db.VarChar(100)
+  category        String   @db.VarChar(50)
+  useFor          String   @db.VarChar(200)
+  howToUse        String   @db.VarChar(300)
+  tip             String   @default("") @db.VarChar(300)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model ChatSession {
+  id             String    @id @default(cuid())
+  ownerId        String    @db.VarChar(64)
+  title          String    @default("New chat") @db.VarChar(40)
+  model          ChatModel @default(GPT4_STYLE)
+  systemPromptId String?
+  temperature    Float     @default(0.5)
+  topP           Float     @default(0.5)
+  messageCount   Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  systemPrompt SystemPrompt? @relation(fields: [systemPromptId], references: [id], onDelete: SetNull)
+  messages     Message[]
+
+  @@index([ownerId, updatedAt])
+}
+
+model Message {
+  id               String      @id @default(cuid())
+  sessionId        String
+  role             MessageRole
+  content          String
+  productIds       String[]    @default([])
+  productSnapshots Json?
+  createdAt        DateTime    @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model QuizResult {
+  id        String   @id @default(cuid())
+  ownerId   String   @db.VarChar(64)
+  score     Int
+  total     Int
+  createdAt DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+}
